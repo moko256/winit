@@ -114,6 +114,8 @@ impl Window {
                     window_state: win.window_state.clone(),
                     event_loop_runner: event_loop.runner_shared.clone(),
                     file_drop_handler,
+                    subclass_removed: Cell::new(false),
+                    recurse_depth: Cell::new(0),
                 };
 
                 event_loop::subclass_window(win.window.0, subclass_input);
@@ -403,20 +405,6 @@ impl Window {
         drop(window_state_lock);
 
         self.thread_executor.execute_in_thread(move || {
-            let mut window_state_lock = window_state.lock();
-
-            // Save window bounds before entering fullscreen
-            match (&old_fullscreen, &fullscreen) {
-                (&None, &Some(_)) => {
-                    let client_rect = util::get_client_rect(window.0).unwrap();
-                    window_state_lock.saved_window = Some(SavedWindow {
-                        client_rect,
-                        scale_factor: window_state_lock.scale_factor,
-                    });
-                }
-                _ => (),
-            }
-
             // Change video mode if we're transitioning to or from exclusive
             // fullscreen
             match (&old_fullscreen, &fullscreen) {
@@ -490,7 +478,7 @@ impl Window {
             }
 
             // Update window style
-            WindowState::set_window_flags(window_state_lock, window.0, |f| {
+            WindowState::set_window_flags(window_state.lock(), window.0, |f| {
                 f.set(
                     WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN,
                     matches!(fullscreen, Some(Fullscreen::Exclusive(_))),
@@ -504,6 +492,15 @@ impl Window {
             // Update window bounds
             match &fullscreen {
                 Some(fullscreen) => {
+                    // Save window bounds before entering fullscreen
+                    let placement = unsafe {
+                        let mut placement = mem::zeroed();
+                        winuser::GetWindowPlacement(window.0, &mut placement);
+                        placement
+                    };
+
+                    window_state.lock().saved_window = Some(SavedWindow { placement });
+
                     let monitor = match &fullscreen {
                         Fullscreen::Exclusive(video_mode) => video_mode.monitor(),
                         Fullscreen::Borderless(Some(monitor)) => monitor.clone(),
@@ -530,27 +527,10 @@ impl Window {
                 }
                 None => {
                     let mut window_state_lock = window_state.lock();
-                    if let Some(SavedWindow {
-                        client_rect,
-                        scale_factor,
-                    }) = window_state_lock.saved_window.take()
-                    {
-                        window_state_lock.scale_factor = scale_factor;
+                    if let Some(SavedWindow { placement }) = window_state_lock.saved_window.take() {
                         drop(window_state_lock);
-                        let client_rect = util::adjust_window_rect(window.0, client_rect).unwrap();
-
                         unsafe {
-                            winuser::SetWindowPos(
-                                window.0,
-                                ptr::null_mut(),
-                                client_rect.left,
-                                client_rect.top,
-                                client_rect.right - client_rect.left,
-                                client_rect.bottom - client_rect.top,
-                                winuser::SWP_ASYNCWINDOWPOS
-                                    | winuser::SWP_NOZORDER
-                                    | winuser::SWP_NOACTIVATE,
-                            );
+                            winuser::SetWindowPlacement(window.0, &placement);
                             winuser::InvalidateRgn(window.0, ptr::null_mut(), 0);
                         }
                     }
@@ -805,7 +785,7 @@ unsafe fn init<T: 'static>(
 
     let dimensions = attributes
         .inner_size
-        .unwrap_or_else(|| PhysicalSize::new(1024, 768).into());
+        .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
     win.set_inner_size(dimensions);
     if attributes.maximized {
         // Need to set MAXIMIZED after setting `inner_size` as
