@@ -2,7 +2,7 @@ use std::io::{stdout, Write};
 use simple_logger::SimpleLogger;
 use winit::{
     dpi::PhysicalPosition,
-    event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
+    event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, IME},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -10,11 +10,23 @@ use winit::{
 struct TextareaState {
     text: Vec<char>,
     cursor_idx: usize,
-    preedit_start: Option<usize>,
-    preedit_end: Option<usize>,
+    preedit: Option<PreeditState>,
+}
+
+struct PreeditState {
+    text: String,
+    start: usize,
+    end: usize,
 }
 
 impl TextareaState {
+    fn new() -> TextareaState {
+        TextareaState {
+            text: Vec::new(),
+            cursor_idx: 0,
+            preedit: None,
+        }
+    }
     fn validate_cusor_pos(&mut self) {
         self.cursor_idx = self.cursor_idx.max(0).min(self.text.len());
     }
@@ -38,27 +50,46 @@ impl TextareaState {
     fn clear(&mut self) {
         self.text.clear();
         self.cursor_idx = 0;
-        self.preedit_start = None;
-        self.preedit_end = None;
+        self.preedit = None;
     }
     fn draw_to_stdout(&self) {
+        if self.text.is_empty() {
+            print!("\x1b[2mFocus the window and type something\x1b[0m");
+        } else {
         let mut output = String::new();
         for (idx, chr) in self.text.iter().enumerate() {
             if idx == self.cursor_idx {
+                if let Some(preedit) = &self.preedit {
+                    let mut preedit_text = preedit.text.clone();
+                    preedit_text.insert(preedit.end, '\u{2502}');
+                    preedit_text.insert(preedit.start, '\u{2502}');
+                    output.push_str("\x1b[7m");
+                    output.push_str(&preedit_text);
+                    output.push_str("\x1b[0m");
+                }
                 output.push('\u{2502}');
             }
             output.push(chr.clone());
         }
         if self.text.len() == self.cursor_idx {
+            if let Some(preedit) = &self.preedit {
+                let mut preedit_text = preedit.text.clone();
+                preedit_text.insert(preedit.end, '\u{2502}');
+                preedit_text.insert(preedit.start, '\u{2502}');
+                output.push_str("\x1b[7m");
+                output.push_str(&preedit_text);
+                output.push_str("\x1b[0m");
+            }
             output.push('\u{2502}');
         }
         print!("{}", output);
+    }
         stdout().flush().unwrap();
     }
 }
 
 fn main() {
-    println!("\u{1f469}\u{1f3fb}こんにちは\x1b[48;2;255;255;255m\x1b[30m今日\x1b[0m\u{2502}");
+    println!("\u{1f469}\u{1f3fb}こんにちは\x1b[7m今日\x1b[0m\u{2502}");
     SimpleLogger::new().init().unwrap();
     let event_loop = EventLoop::new();
 
@@ -69,15 +100,9 @@ fn main() {
         .unwrap();
     window.set_ime_position(PhysicalPosition::new(0.0, 0.0));
     
-    print!("Focus the window and type something");
-    stdout().flush().unwrap();
+    let mut textarea = TextareaState::new();
+    textarea.draw_to_stdout();
     
-    let mut textarea = TextareaState {
-        text: Vec::new(),
-        cursor_idx: 0,
-        preedit_start: None,
-        preedit_end: None,
-    };
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
@@ -86,10 +111,12 @@ fn main() {
                 ..
             } => {
                 print!("\n\x1b[F\x1b[K");
-                println!("{} : {}", codepoint, codepoint.escape_unicode());
+                println!("{:?}", event);
+                //println!("{} : {}", codepoint, codepoint.escape_unicode());
                 match codepoint {
                     '\u{7F}' => textarea.clear(),
                     '\u{08}' => textarea.delete_before_cursor_if_exists(),
+                    '\u{0}'..='\u{1F}' => (),//Other control sequence
                     chr => textarea.insert_before_cursor(chr),
                 }
                 textarea.draw_to_stdout();
@@ -107,6 +134,7 @@ fn main() {
             } => {
                 if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right {
                     print!("\x1b[F\x1b[E\x1b[K");
+                    println!("{:?}", event);
                     match state {
                         VirtualKeyCode::Left => {
                             textarea.move_cursor_left();
@@ -118,6 +146,25 @@ fn main() {
                     }
                     textarea.draw_to_stdout();
                 }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::IME(event),
+                ..
+            } => {
+                print!("\n\x1b[F\x1b[K");
+                textarea.preedit = None;
+                println!("{:?}", event);
+                match event {
+                    IME::Preedit(t, s, e) => {
+                        textarea.preedit = Some(PreeditState {
+                            text: t.clone(),
+                            start: s.unwrap_or(0),
+                            end: e.unwrap_or(t.len()),
+                        });
+                    },
+                    _ => (),
+                }
+                textarea.draw_to_stdout();
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
