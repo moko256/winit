@@ -61,26 +61,36 @@ impl TextareaState {
             if idx == self.cursor_idx {
                 if let Some(preedit) = &self.preedit {
                     let mut preedit_text = preedit.text.clone();
-                    preedit_text.insert(preedit.end, '\u{2502}');
-                    preedit_text.insert(preedit.start, '\u{2502}');
-                    output.push_str("\x1b[7m");
+                    if preedit.start == preedit.end {
+                        preedit_text.insert(preedit.end, '\u{2502}');
+                    } else {
+                        preedit_text.insert_str(preedit.end, "\x1b[0m\x1b[4m");
+                        preedit_text.insert_str(preedit.start, "\x1b[7m");
+                    }
+                    output.push_str("\x1b[4m");
                     output.push_str(&preedit_text);
                     output.push_str("\x1b[0m");
+                } else {
+                    output.push('\u{2502}');
                 }
-                output.push('\u{2502}');
             }
             output.push(chr.clone());
         }
         if self.text.len() == self.cursor_idx {
             if let Some(preedit) = &self.preedit {
                 let mut preedit_text = preedit.text.clone();
-                preedit_text.insert(preedit.end, '\u{2502}');
-                preedit_text.insert(preedit.start, '\u{2502}');
-                output.push_str("\x1b[7m");
+                if preedit.start == preedit.end {
+                    preedit_text.insert(preedit.end, '\u{2502}');
+                } else {
+                    preedit_text.insert_str(preedit.end, "\x1b[0m\x1b[4m");
+                    preedit_text.insert_str(preedit.start, "\x1b[7m");
+                }
+                output.push_str("\x1b[4m");
                 output.push_str(&preedit_text);
                 output.push_str("\x1b[0m");
+            } else {
+                output.push('\u{2502}');
             }
-            output.push('\u{2502}');
         }
         print!("{}", output);
     }
@@ -89,7 +99,7 @@ impl TextareaState {
 }
 
 fn main() {
-    println!("\u{1f469}\u{1f3fb}こんにちは\x1b[7m今日\x1b[0m\u{2502}");
+    println!("\u{1f469}\u{1f3fb}こんにちは\x1b[4m\x1b[7m今日\x1b[0m\u{2502}");
     SimpleLogger::new().init().unwrap();
     let event_loop = EventLoop::new();
 
