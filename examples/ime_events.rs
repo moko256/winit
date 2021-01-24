@@ -53,7 +53,7 @@ impl TextareaState {
         self.preedit = None;
     }
     fn draw_to_stdout(&self) {
-        if self.text.is_empty() {
+        if self.text.is_empty() && self.preedit.is_none() {
             print!("\x1b[2mFocus the window and type something\x1b[0m");
         } else {
         let mut output = String::new();
