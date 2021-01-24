@@ -123,6 +123,7 @@ fn main() {
                 print!("\n\x1b[F\x1b[K");
                 println!("{:?}", event);
                 //println!("{} : {}", codepoint, codepoint.escape_unicode());
+                textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
                 match codepoint {
                     '\u{7F}' => textarea.clear(),
                     '\u{08}' => textarea.delete_before_cursor_if_exists(),
