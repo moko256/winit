@@ -108,7 +108,6 @@ fn main() {
         .with_inner_size(winit::dpi::LogicalSize::new(128.0, 128.0))
         .build(&event_loop)
         .unwrap();
-    window.set_ime_position(PhysicalPosition::new(0.0, 0.0));
     
     let mut textarea = TextareaState::new();
     textarea.draw_to_stdout();
@@ -166,6 +165,7 @@ fn main() {
                 textarea.preedit = None;
                 println!("{:?}", event);
                 match event {
+                    IME::Enabled => window.set_ime_position(PhysicalPosition::new(0.0, 0.0)),
                     IME::Preedit(t, s, e) => {
                         textarea.preedit = Some(PreeditState {
                             text: t.clone(),
