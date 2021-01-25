@@ -56,44 +56,31 @@ impl TextareaState {
         if self.text.is_empty() && self.preedit.is_none() {
             print!("\x1b[2mFocus the window and type something\x1b[0m");
         } else {
-        let mut output = String::new();
-        for (idx, chr) in self.text.iter().enumerate() {
-            if idx == self.cursor_idx {
-                if let Some(preedit) = &self.preedit {
-                    let mut preedit_text = preedit.text.clone();
-                    if preedit.start == preedit.end {
-                        preedit_text.insert(preedit.end, '\u{2502}');
+            let mut output = String::new();
+            for idx in 0..=self.text.len() {
+                if idx == self.cursor_idx {
+                    if let Some(preedit) = &self.preedit {
+                        let mut preedit_text = preedit.text.clone();
+                        if preedit.start == preedit.end {
+                            preedit_text.insert(preedit.end, '\u{2502}');
+                        } else {
+                            preedit_text.insert_str(preedit.end, "\x1b[0m\x1b[4m");
+                            preedit_text.insert_str(preedit.start, "\x1b[7m");
+                        }
+                        output.push_str("\x1b[4m");
+                        output.push_str(&preedit_text);
+                        output.push_str("\x1b[0m");
                     } else {
-                        preedit_text.insert_str(preedit.end, "\x1b[0m\x1b[4m");
-                        preedit_text.insert_str(preedit.start, "\x1b[7m");
+                        output.push('\u{2502}');
                     }
-                    output.push_str("\x1b[4m");
-                    output.push_str(&preedit_text);
-                    output.push_str("\x1b[0m");
-                } else {
-                    output.push('\u{2502}');
+                }
+                if 0 <= idx && idx < self.text.len() {
+                    let chr = self.text[idx];
+                    output.push(chr.clone());
                 }
             }
-            output.push(chr.clone());
+            print!("{}", output);
         }
-        if self.text.len() == self.cursor_idx {
-            if let Some(preedit) = &self.preedit {
-                let mut preedit_text = preedit.text.clone();
-                if preedit.start == preedit.end {
-                    preedit_text.insert(preedit.end, '\u{2502}');
-                } else {
-                    preedit_text.insert_str(preedit.end, "\x1b[0m\x1b[4m");
-                    preedit_text.insert_str(preedit.start, "\x1b[7m");
-                }
-                output.push_str("\x1b[4m");
-                output.push_str(&preedit_text);
-                output.push_str("\x1b[0m");
-            } else {
-                output.push('\u{2502}');
-            }
-        }
-        print!("{}", output);
-    }
         stdout().flush().unwrap();
     }
 }
@@ -119,8 +106,8 @@ fn main() {
                 event: WindowEvent::ReceivedCharacter(codepoint),
                 ..
             } => {
-                print!("\n\x1b[F\x1b[K");
-                println!("{:?}", event);
+                print!("\x1b[F\x1b[E\x1b[K");
+                print!("{:?}\n", event);
                 //println!("{} : {}", codepoint, codepoint.escape_unicode());
                 textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
                 match codepoint {
@@ -144,7 +131,7 @@ fn main() {
             } => {
                 if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right {
                     print!("\x1b[F\x1b[E\x1b[K");
-                    println!("{:?}", event);
+                    print!("{:?}\n", event);
                     match state {
                         VirtualKeyCode::Left => {
                             textarea.move_cursor_left();
@@ -161,9 +148,9 @@ fn main() {
                 event: WindowEvent::IME(event),
                 ..
             } => {
-                print!("\n\x1b[F\x1b[K");
+                print!("\x1b[F\x1bE\x1b[K");
                 textarea.preedit = None;
-                println!("{:?}", event);
+                print!("{:?}\n", event);
                 match event {
                     IME::Enabled => window.set_ime_position(PhysicalPosition::new(0.0, 0.0)),
                     IME::Preedit(t, s, e) => {
