@@ -102,67 +102,60 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
-            Event::WindowEvent {
-                event: WindowEvent::ReceivedCharacter(codepoint),
-                ..
-            } => {
-                textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
-                match codepoint {
-                    '\u{7F}' => textarea.clear(),
-                    '\u{08}' => textarea.delete_before_cursor_if_exists(),
-                    '\u{0}'..='\u{1F}' => (), //Other control sequence
-                    chr => textarea.insert_before_cursor(chr),
-                }
-                print!("\x1b[F\x1b[E\x1b[K");
-                println!("{:?}", event);
-                textarea.draw_to_stdout();
-            }
-            Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(state),
-                                ..
-                            },
-                        ..
-                    },
-                ..
-            } if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right => {
-                match state {
-                    VirtualKeyCode::Left => textarea.move_cursor_left(),
-                    VirtualKeyCode::Right => textarea.move_cursor_right(),
-                    _ => (),
-                }
-                print!("\x1b[F\x1b[E\x1b[K");
-                println!("{:?}", event);
-                textarea.draw_to_stdout();
-            }
-            Event::WindowEvent {
-                event: WindowEvent::IME(event),
-                ..
-            } => {
-                textarea.preedit = None;
-                print!("\x1b[F\x1bE\x1b[K");
-                println!("{:?}", event);
-                match event {
-                    IME::Enabled => window.set_ime_position(PhysicalPosition::new(0.0, 0.0)),
-                    IME::Preedit(t, s, e) => {
-                        textarea.preedit = Some(PreeditState {
-                            text: t.clone(),
-                            start: s.unwrap_or(0),
-                            end: e.unwrap_or(t.len()),
-                        });
+            Event::WindowEvent { event, window_id } if window_id == window.id() => match event {
+                WindowEvent::ReceivedCharacter(codepoint) => {
+                    textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
+                    match codepoint {
+                        '\u{7F}' => textarea.clear(),
+                        '\u{08}' => textarea.delete_before_cursor_if_exists(),
+                        '\u{0}'..='\u{1F}' => (), //Other control sequence
+                        chr => textarea.insert_before_cursor(chr),
                     }
-                    _ => (),
+                    print!("\x1b[F\x1b[E\x1b[K");
+                    println!("{:?}", event);
+                    textarea.draw_to_stdout();
                 }
-                textarea.draw_to_stdout();
-            }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                window_id,
-            } if window_id == window.id() => *control_flow = ControlFlow::Exit,
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            state: ElementState::Pressed,
+                            virtual_keycode: Some(state),
+                            ..
+                        },
+                    ..
+                } if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right => {
+                    match state {
+                        VirtualKeyCode::Left => textarea.move_cursor_left(),
+                        VirtualKeyCode::Right => textarea.move_cursor_right(),
+                        _ => (),
+                    }
+                    print!("\x1b[F\x1b[E\x1b[K");
+                    println!("{:?}", event);
+                    textarea.draw_to_stdout();
+                }
+                WindowEvent::IME(event) => {
+                    textarea.preedit = None;
+                    print!("\x1b[F\x1bE\x1b[K");
+                    println!("{:?}", event);
+                    match event {
+                        IME::Enabled => window.set_ime_position(PhysicalPosition::new(0.0, 0.0)),
+                        IME::Preedit(t, s, e) => {
+                            textarea.preedit = Some(PreeditState {
+                                text: t.clone(),
+                                start: s.unwrap_or(0),
+                                end: e.unwrap_or(t.len()),
+                            });
+                        }
+                        _ => (),
+                    }
+                    textarea.draw_to_stdout();
+                }
+                WindowEvent::CloseRequested => {
+                    *control_flow = ControlFlow::Exit;
+                    println!("");
+                }
+                _ => (),
+            },
             Event::MainEventsCleared => {
                 window.request_redraw();
             }
