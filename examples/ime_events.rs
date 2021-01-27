@@ -1,8 +1,8 @@
-use std::io::{stdout, Write};
 use simple_logger::SimpleLogger;
+use std::io::{stdout, Write};
 use winit::{
     dpi::PhysicalPosition,
-    event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, IME},
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent, IME},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -37,15 +37,15 @@ impl TextareaState {
     }
     fn delete_before_cursor_if_exists(&mut self) {
         if (1..=self.text.len()).contains(&self.cursor_idx) {
-            self.text.remove(self.cursor_idx-1);
+            self.text.remove(self.cursor_idx - 1);
             self.cursor_idx -= 1;
         }
     }
     fn move_cursor_left(&mut self) {
-        self.cursor_idx = self.cursor_idx.max(1)-1;
+        self.cursor_idx = self.cursor_idx.max(1) - 1;
     }
     fn move_cursor_right(&mut self) {
-        self.cursor_idx = (self.cursor_idx+1).min(self.text.len());
+        self.cursor_idx = (self.cursor_idx + 1).min(self.text.len());
     }
     fn clear(&mut self) {
         self.text.clear();
@@ -95,10 +95,10 @@ fn main() {
         .with_inner_size(winit::dpi::LogicalSize::new(128.0, 128.0))
         .build(&event_loop)
         .unwrap();
-    
+
     let mut textarea = TextareaState::new();
     textarea.draw_to_stdout();
-    
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
@@ -113,20 +113,22 @@ fn main() {
                 match codepoint {
                     '\u{7F}' => textarea.clear(),
                     '\u{08}' => textarea.delete_before_cursor_if_exists(),
-                    '\u{0}'..='\u{1F}' => (),//Other control sequence
+                    '\u{0}'..='\u{1F}' => (), //Other control sequence
                     chr => textarea.insert_before_cursor(chr),
                 }
                 textarea.draw_to_stdout();
             }
             Event::WindowEvent {
-                event: WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        state: ElementState::Pressed,
-                        virtual_keycode: Some(state),
+                event:
+                    WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(state),
+                                ..
+                            },
                         ..
                     },
-                    ..
-                },
                 ..
             } => {
                 if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right {
@@ -159,7 +161,7 @@ fn main() {
                             start: s.unwrap_or(0),
                             end: e.unwrap_or(t.len()),
                         });
-                    },
+                    }
                     _ => (),
                 }
                 textarea.draw_to_stdout();
