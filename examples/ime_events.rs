@@ -74,9 +74,8 @@ impl TextareaState {
                         output.push('\u{2502}');
                     }
                 }
-                if 0 <= idx && idx < self.text.len() {
-                    let chr = self.text[idx];
-                    output.push(chr.clone());
+                if idx < self.text.len() {
+                    output.push(self.text[idx].clone());
                 }
             }
             print!("{}", output);
@@ -86,10 +85,9 @@ impl TextareaState {
 }
 
 fn main() {
-    println!("\u{1f469}\u{1f3fb}こんにちは\x1b[4m\x1b[7m今日\x1b[0m\u{2502}");
     SimpleLogger::new().init().unwrap();
-    let event_loop = EventLoop::new();
 
+    let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("A fantastic window!")
         .with_inner_size(winit::dpi::LogicalSize::new(128.0, 128.0))
