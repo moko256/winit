@@ -106,9 +106,6 @@ fn main() {
                 event: WindowEvent::ReceivedCharacter(codepoint),
                 ..
             } => {
-                print!("\x1b[F\x1b[E\x1b[K");
-                print!("{:?}\n", event);
-                //println!("{} : {}", codepoint, codepoint.escape_unicode());
                 textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
                 match codepoint {
                     '\u{7F}' => textarea.clear(),
@@ -116,6 +113,8 @@ fn main() {
                     '\u{0}'..='\u{1F}' => (), //Other control sequence
                     chr => textarea.insert_before_cursor(chr),
                 }
+                print!("\x1b[F\x1b[E\x1b[K");
+                println!("{:?}", event);
                 textarea.draw_to_stdout();
             }
             Event::WindowEvent {
@@ -132,8 +131,6 @@ fn main() {
                 ..
             } => {
                 if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right {
-                    print!("\x1b[F\x1b[E\x1b[K");
-                    print!("{:?}\n", event);
                     match state {
                         VirtualKeyCode::Left => {
                             textarea.move_cursor_left();
@@ -143,6 +140,8 @@ fn main() {
                         }
                         _ => (),
                     }
+                    print!("\x1b[F\x1b[E\x1b[K");
+                    println!("{:?}", event);
                     textarea.draw_to_stdout();
                 }
             }
@@ -150,9 +149,9 @@ fn main() {
                 event: WindowEvent::IME(event),
                 ..
             } => {
-                print!("\x1b[F\x1bE\x1b[K");
                 textarea.preedit = None;
-                print!("{:?}\n", event);
+                print!("\x1b[F\x1bE\x1b[K");
+                println!("{:?}", event);
                 match event {
                     IME::Enabled => window.set_ime_position(PhysicalPosition::new(0.0, 0.0)),
                     IME::Preedit(t, s, e) => {
