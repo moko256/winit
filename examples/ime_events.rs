@@ -129,21 +129,15 @@ fn main() {
                         ..
                     },
                 ..
-            } => {
-                if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right {
-                    match state {
-                        VirtualKeyCode::Left => {
-                            textarea.move_cursor_left();
-                        }
-                        VirtualKeyCode::Right => {
-                            textarea.move_cursor_right();
-                        }
-                        _ => (),
-                    }
-                    print!("\x1b[F\x1b[E\x1b[K");
-                    println!("{:?}", event);
-                    textarea.draw_to_stdout();
+            } if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right => {
+                match state {
+                    VirtualKeyCode::Left => textarea.move_cursor_left(),
+                    VirtualKeyCode::Right => textarea.move_cursor_right(),
+                    _ => (),
                 }
+                print!("\x1b[F\x1b[E\x1b[K");
+                println!("{:?}", event);
+                textarea.draw_to_stdout();
             }
             Event::WindowEvent {
                 event: WindowEvent::IME(event),
