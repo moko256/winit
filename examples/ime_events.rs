@@ -33,7 +33,7 @@ impl TextareaState {
     }
     fn insert_to_cursor_left(&mut self, chr: char) {
         self.text.insert(self.cursor_idx, chr);
-        self.cursor_idx += 1;
+        self.cursor_idx += chr.len_utf8();
     }
     fn move_cursor_to_left(&mut self) {
         let left_char = &self.text[..self.cursor_idx].chars().next_back();
