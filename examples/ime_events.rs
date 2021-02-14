@@ -8,7 +8,7 @@ use winit::{
 };
 
 struct TextareaState {
-    text: Vec<char>,
+    text: String,
     cursor_idx: usize,
     preedit: Option<PreeditState>,
 }
@@ -22,30 +22,39 @@ struct PreeditState {
 impl TextareaState {
     fn new() -> TextareaState {
         TextareaState {
-            text: Vec::new(),
+            text: String::new(),
             cursor_idx: 0,
             preedit: None,
         }
     }
-    fn validate_cusor_pos(&mut self) {
-        self.cursor_idx = self.cursor_idx.max(0).min(self.text.len());
-    }
-    fn insert_before_cursor(&mut self, chr: char) {
-        self.validate_cusor_pos();
+    fn insert_to_cursor_left(&mut self, chr: char) {
         self.text.insert(self.cursor_idx, chr);
         self.cursor_idx += 1;
     }
-    fn delete_before_cursor_if_exists(&mut self) {
-        if (1..=self.text.len()).contains(&self.cursor_idx) {
-            self.text.remove(self.cursor_idx - 1);
-            self.cursor_idx -= 1;
+    fn move_cursor_to_left(&mut self) {
+        let left_char = &self.text[..self.cursor_idx].chars().next_back();
+        if let Some(char) = left_char {
+            self.cursor_idx -= char.len_utf8();
         }
     }
-    fn move_cursor_left(&mut self) {
-        self.cursor_idx = self.cursor_idx.max(1) - 1;
+    fn move_cursor_to_right(&mut self) {
+        let right_char = &self.text[self.cursor_idx..].chars().next();
+        if let Some(char) = right_char {
+            self.cursor_idx += char.len_utf8();
+        }
     }
-    fn move_cursor_right(&mut self) {
-        self.cursor_idx = (self.cursor_idx + 1).min(self.text.len());
+    fn delete_cursor_left(&mut self) {
+        let left_char = &self.text[..self.cursor_idx].chars().next_back();
+        if let Some(char) = left_char {
+            self.cursor_idx -= char.len_utf8();
+            self.text.remove(self.cursor_idx);
+        }
+    }
+    fn delete_cursor_right(&mut self) {
+        let right_char = &self.text[self.cursor_idx..].chars().next();
+        if let Some(_) = right_char {
+            self.text.remove(self.cursor_idx);
+        }
     }
     fn clear(&mut self) {
         self.text.clear();
@@ -56,27 +65,20 @@ impl TextareaState {
         if self.text.is_empty() && self.preedit.is_none() {
             print!("\x1b[2mFocus the window and type something\x1b[0m");
         } else {
-            let mut output = String::new();
-            for idx in 0..=self.text.len() {
-                if idx == self.cursor_idx {
-                    if let Some(preedit) = &self.preedit {
-                        let mut preedit_text = preedit.text.clone();
-                        if preedit.start == preedit.end {
-                            preedit_text.insert(preedit.end, '\u{2502}');
-                        } else {
-                            preedit_text.insert_str(preedit.end, "\x1b[0m\x1b[4m");
-                            preedit_text.insert_str(preedit.start, "\x1b[7m");
-                        }
-                        output.push_str("\x1b[4m");
-                        output.push_str(&preedit_text);
-                        output.push_str("\x1b[0m");
-                    } else {
-                        output.push('\u{2502}');
-                    }
+            let mut output = self.text.clone();
+            if let Some(preedit) = &self.preedit {
+                // insertion in this block is reverse order
+                output.insert_str(self.cursor_idx, "\x1b[0m");
+                output.insert_str(self.cursor_idx, &preedit.text);
+                if preedit.start == preedit.end {
+                    output.insert(self.cursor_idx + preedit.start, '\u{2502}');
+                } else {
+                    output.insert_str(self.cursor_idx + preedit.start, "\x1b[0m\x1b[4m");
+                    output.insert_str(self.cursor_idx + preedit.start, "\x1b[7m");
                 }
-                if idx < self.text.len() {
-                    output.push(self.text[idx].clone());
-                }
+                output.insert_str(self.cursor_idx, "\x1b[4m");
+            } else {
+                output.insert(self.cursor_idx, '\u{2502}');
             }
             print!("{}", output);
         }
@@ -104,10 +106,11 @@ fn main() {
                 WindowEvent::ReceivedCharacter(codepoint) => {
                     textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
                     match codepoint {
-                        '\u{7F}' => textarea.clear(),
-                        '\u{08}' => textarea.delete_before_cursor_if_exists(),
+                        '\u{08}' => textarea.delete_cursor_left(),
+                        '\u{7F}' => textarea.delete_cursor_right(),
+                        '\r' | '\n' => textarea.clear(),
                         '\u{0}'..='\u{1F}' => (), //Other control sequence
-                        chr => textarea.insert_before_cursor(chr),
+                        chr => textarea.insert_to_cursor_left(chr),
                     }
                     print!("\x1b[F\x1b[E\x1b[K");
                     println!("{:?}", event);
@@ -123,8 +126,8 @@ fn main() {
                     ..
                 } if state == VirtualKeyCode::Left || state == VirtualKeyCode::Right => {
                     match state {
-                        VirtualKeyCode::Left => textarea.move_cursor_left(),
-                        VirtualKeyCode::Right => textarea.move_cursor_right(),
+                        VirtualKeyCode::Left => textarea.move_cursor_to_left(),
+                        VirtualKeyCode::Right => textarea.move_cursor_to_right(),
                         _ => (),
                     }
                     print!("\x1b[F\x1b[E\x1b[K");
