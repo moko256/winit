@@ -31,32 +31,32 @@ impl TextareaState {
             focusing: true,
         }
     }
-    fn insert_to_cursor_left(&mut self, chr: char) {
-        self.text.insert(self.cursor_idx, chr);
-        self.cursor_idx += chr.len_utf8();
+    fn insert_to_cursor_left(&mut self, ch: char) {
+        self.text.insert(self.cursor_idx, ch);
+        self.cursor_idx += ch.len_utf8();
     }
     fn move_cursor_to_left(&mut self) {
-        let left_char = &self.text[..self.cursor_idx].chars().next_back();
-        if let Some(char) = left_char {
-            self.cursor_idx -= char.len_utf8();
+        let left_ch = &self.text[..self.cursor_idx].chars().next_back();
+        if let Some(ch) = left_ch {
+            self.cursor_idx -= ch.len_utf8();
         }
     }
     fn move_cursor_to_right(&mut self) {
-        let right_char = &self.text[self.cursor_idx..].chars().next();
-        if let Some(char) = right_char {
-            self.cursor_idx += char.len_utf8();
+        let right_ch = &self.text[self.cursor_idx..].chars().next();
+        if let Some(ch) = right_ch {
+            self.cursor_idx += ch.len_utf8();
         }
     }
     fn delete_cursor_left(&mut self) {
-        let left_char = &self.text[..self.cursor_idx].chars().next_back();
-        if let Some(char) = left_char {
-            self.cursor_idx -= char.len_utf8();
+        let left_ch = &self.text[..self.cursor_idx].chars().next_back();
+        if let Some(ch) = left_ch {
+            self.cursor_idx -= ch.len_utf8();
             self.text.remove(self.cursor_idx);
         }
     }
     fn delete_cursor_right(&mut self) {
-        let right_char = &self.text[self.cursor_idx..].chars().next();
-        if let Some(_) = right_char {
+        let right_ch = &self.text[self.cursor_idx..].chars().next();
+        if let Some(_) = right_ch {
             self.text.remove(self.cursor_idx);
         }
     }
@@ -120,7 +120,7 @@ fn main() {
                         '\u{7F}' => textarea.delete_cursor_right(),
                         '\r' | '\n' => textarea.clear(),
                         '\u{0}'..='\u{1F}' => (), //Other control sequence
-                        chr => textarea.insert_to_cursor_left(chr),
+                        ch => textarea.insert_to_cursor_left(ch),
                     }
                     println!("{:?}", event);
                     textarea.draw_to_stdout();
