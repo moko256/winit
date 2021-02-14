@@ -108,7 +108,7 @@ fn main() {
     let mut textarea = TextareaState::new();
     textarea.hint = "Type something...".to_string();
     textarea.draw_to_stdout();
-    
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
