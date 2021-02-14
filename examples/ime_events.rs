@@ -11,6 +11,8 @@ struct TextareaState {
     text: String,
     cursor_idx: usize,
     preedit: Option<PreeditState>,
+    hint: String,
+    focusing: bool,
 }
 
 struct PreeditState {
@@ -25,6 +27,8 @@ impl TextareaState {
             text: String::new(),
             cursor_idx: 0,
             preedit: None,
+            hint: String::new(),
+            focusing: true,
         }
     }
     fn insert_to_cursor_left(&mut self, chr: char) {
@@ -63,7 +67,11 @@ impl TextareaState {
     }
     fn draw_to_stdout(&self) {
         if self.text.is_empty() && self.preedit.is_none() {
-            print!("\x1b[2mFocus the window and type something\x1b[0m");
+            if self.focusing {
+                print!("\x1b[2m{}\x1b[0m", self.hint);
+            } else {
+                print!("\x1b[1mFocus the window\x1b[0m");
+            }
         } else {
             let mut output = self.text.clone();
             if let Some(preedit) = &self.preedit {
@@ -77,12 +85,13 @@ impl TextareaState {
                     output.insert_str(self.cursor_idx + preedit.start, "\x1b[7m");
                 }
                 output.insert_str(self.cursor_idx, "\x1b[4m");
-            } else {
+            } else if self.focusing {
                 output.insert(self.cursor_idx, '\u{2502}');
             }
             print!("{}", output);
         }
         stdout().flush().unwrap();
+        print!("\x1b[F\x1b[E\x1b[K");
     }
 }
 
@@ -97,8 +106,9 @@ fn main() {
         .unwrap();
 
     let mut textarea = TextareaState::new();
+    textarea.hint = "Type something...".to_string();
     textarea.draw_to_stdout();
-
+    
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
@@ -112,7 +122,6 @@ fn main() {
                         '\u{0}'..='\u{1F}' => (), //Other control sequence
                         chr => textarea.insert_to_cursor_left(chr),
                     }
-                    print!("\x1b[F\x1b[E\x1b[K");
                     println!("{:?}", event);
                     textarea.draw_to_stdout();
                 }
@@ -130,13 +139,11 @@ fn main() {
                         VirtualKeyCode::Right => textarea.move_cursor_to_right(),
                         _ => (),
                     }
-                    print!("\x1b[F\x1b[E\x1b[K");
                     println!("{:?}", event);
                     textarea.draw_to_stdout();
                 }
                 WindowEvent::IME(event) => {
                     textarea.preedit = None;
-                    print!("\x1b[F\x1bE\x1b[K");
                     println!("{:?}", event);
                     match event {
                         IME::Enabled => window.set_ime_position(PhysicalPosition::new(0.0, 0.0)),
@@ -149,6 +156,11 @@ fn main() {
                         }
                         _ => (),
                     }
+                    textarea.draw_to_stdout();
+                }
+                WindowEvent::Focused(focusing) => {
+                    textarea.focusing = focusing;
+                    println!("{:?}", event);
                     textarea.draw_to_stdout();
                 }
                 WindowEvent::CloseRequested => {
