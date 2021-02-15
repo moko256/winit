@@ -122,10 +122,10 @@ fn main() {
                 WindowEvent::ReceivedCharacter(codepoint) => {
                     textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
                     match codepoint {
-                        '\u{08}' => textarea.delete_cursor_left(), // Some IME send backspace to window when reconversion
-                        '\u{7F}' => textarea.delete_cursor_right(),
+                        '\x08' /* BS  */ => textarea.delete_cursor_left(), // Some IME send backspace to window when reconversion
+                        '\x7F' /* DEL */ => textarea.delete_cursor_right(),
                         '\r' | '\n' => textarea.clear(),
-                        '\u{0}'..='\u{1F}' => (), // Ignore the other ASCII control sequences
+                        '\x00'..='\x1F' => (), // Ignore the other ASCII control sequences
                         ch => textarea.insert_to_cursor_left(ch),
                     }
                     println!("{:?}", event);
