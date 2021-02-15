@@ -1,4 +1,4 @@
-//! Example one-line textarea supporting [`winit::event::IME`]
+//! Example one-line textarea supporting [`winit::event::IME`](crate::event::IME) events
 //! 
 //! - Pressing left/right key to move cursor
 //! - Pressing backspace/delete key to delete character
