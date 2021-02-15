@@ -1,3 +1,10 @@
+//! Example one-line textarea supporting [`winit::event::IME`]
+//! 
+//! - Pressing left/right key to move cursor
+//! - Pressing backspace/delete key to delete character
+//! - Pressing enter key to clear all inserted character
+//! - Pressing any key to insert character
+
 use simple_logger::SimpleLogger;
 use std::io::{stdout, Write};
 use winit::{
@@ -75,8 +82,7 @@ impl TextareaState {
         } else {
             let mut output = self.text.clone();
             if let Some(preedit) = &self.preedit {
-                // insertion in this block is reverse order
-                output.insert_str(self.cursor_idx, "\x1b[0m");
+                output.insert_str(self.cursor_idx, "\x1b[0m"); // End of output
                 output.insert_str(self.cursor_idx, &preedit.text);
                 if preedit.start == preedit.end {
                     output.insert(self.cursor_idx + preedit.start, '\u{2502}');
@@ -86,7 +92,7 @@ impl TextareaState {
                 }
                 output.insert_str(self.cursor_idx, "\x1b[4m");
             } else if self.focusing {
-                output.insert(self.cursor_idx, '\u{2502}');
+                output.insert(self.cursor_idx, '\u{2502}'); // Start of output
             }
             print!("{}", output);
         }
@@ -116,10 +122,10 @@ fn main() {
                 WindowEvent::ReceivedCharacter(codepoint) => {
                     textarea.preedit = None; // On linux, Commit event comes after ReceivedCharacter
                     match codepoint {
-                        '\u{08}' => textarea.delete_cursor_left(),
+                        '\u{08}' => textarea.delete_cursor_left(), // Some IME send backspace to window when reconversion
                         '\u{7F}' => textarea.delete_cursor_right(),
                         '\r' | '\n' => textarea.clear(),
-                        '\u{0}'..='\u{1F}' => (), //Other control sequence
+                        '\u{0}'..='\u{1F}' => (), // Ignore the other ASCII control sequences
                         ch => textarea.insert_to_cursor_left(ch),
                     }
                     println!("{:?}", event);
